@@ -1,0 +1,28 @@
+{
+  "name": "Private1 Codespace",
+  "image": "mcr.microsoft.com/devcontainers/python:3.10",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ],
+      "settings": {
+        "github.copilot.enable": {
+          "*": true,
+          "plaintext": true,
+          "markdown": true,
+          "scminput": false
+        },
+        "github.copilot.chat.languageModel": "claude-sonnet-4-5",
+        "github.copilot.chat.agent.thinkingTool": true
+      }
+    }
+  },
+  "postCreateCommand": "pip install --upgrade pip && [ -f requirements.txt ] && pip install -r requirements.txt || true"
+}
