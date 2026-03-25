@@ -1,0 +1,11 @@
+{
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": true,
+    "markdown": true,
+    "scminput": false
+  },
+  "github.copilot.chat.languageModel": "claude-sonnet-4-5",
+  "github.copilot.chat.agent.thinkingTool": true,
+  "chat.agent.enabled": true
+}
