@@ -5,6 +5,8 @@
     "markdown": true,
     "scminput": false
   },
+  // Default model for Copilot Chat (applies locally and in Codespaces).
+  // Switch to "claude-opus-4-5" for the Opus model via the model picker or by changing this value.
   "github.copilot.chat.languageModel": "claude-sonnet-4-5",
   "github.copilot.chat.agent.thinkingTool": true,
   "chat.agent.enabled": true
