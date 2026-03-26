@@ -2,6 +2,36 @@
 
 This repository is a bioinformatics project (Private1) containing coursework and data-library software for Algo_BI and SS_BI, as well as data-fetching utilities (NCBI, Kaggle).
 
+## How to Check Your Copilot Plan (Pro vs Pro+)
+
+### Quick check — GitHub billing page
+
+1. Go to **[github.com/settings/billing](https://github.com/settings/billing)**.
+2. Look for the **GitHub Copilot** line under *Current plan* or *Add-ons*.
+   - If it reads **"Copilot Pro"** → you have Copilot Pro.
+   - If it reads **"Copilot Pro+"** → you have Copilot Pro+.
+
+### Alternative check — Copilot settings page
+
+1. Go to **[github.com/settings/copilot](https://github.com/settings/copilot)**.
+2. Open the **Models** section.  
+   - **Copilot Pro**: Only the standard OpenAI models (GPT-4o, etc.) are listed; Claude models are absent or shown as requiring an upgrade.  
+   - **Copilot Pro+**: Claude Sonnet 4.5 and Claude Opus 4.5 appear as selectable models (they may be listed but only activated via workspace settings in some UI versions).
+
+### Key differences between the two plans
+
+| Feature | Copilot Pro | Copilot Pro+ |
+|---|---|---|
+| GPT-4o / GPT-4.1 | ✅ | ✅ |
+| Claude Sonnet 4.5 | ❌ | ✅ |
+| Claude Opus 4.5 | ❌ | ✅ |
+| Gemini models | Limited | ✅ |
+| Monthly price (approx.) | $10/mo | $19/mo |
+
+> **Note for this repository:** The workspace is configured to use **Claude Sonnet 4.5** (`"github.copilot.chat.languageModel": "claude-sonnet-4-5"`). This model requires **Copilot Pro+**. If your plan is Copilot Pro, requests will either fall back to the default model or produce an error — upgrade to Copilot Pro+ at [github.com/settings/billing](https://github.com/settings/billing) to use Claude models.
+
+---
+
 ## Using Claude Models with Copilot Pro+
 
 Copilot Pro+ includes access to **Claude Sonnet 4.5** and **Claude Opus 4.5** models in addition to the default OpenAI models.  
