@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Copilot: Use Claude Sonnet 4.5",
+      "detail": "Switch Copilot Chat to claude-sonnet-4-5 (fast & capable — good default)",
+      "type": "shell",
+      "command": "python3 tools/set_copilot_model.py sonnet",
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "Copilot: Use Claude Opus 4.5",
+      "detail": "Switch Copilot Chat to claude-opus-4-5 (most capable — best for complex reasoning)",
+      "type": "shell",
+      "command": "python3 tools/set_copilot_model.py opus",
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "Copilot: Use Claude Haiku 4.5",
+      "detail": "Switch Copilot Chat to claude-haiku-4-5 (fastest — good for quick completions)",
+      "type": "shell",
+      "command": "python3 tools/set_copilot_model.py haiku",
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "Copilot: Use Auto",
+      "detail": "Remove the Claude model override — Copilot selects the model automatically",
+      "type": "shell",
+      "command": "python3 tools/set_copilot_model.py auto",
+      "problemMatcher": [],
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false,
+        "clear": true
+      }
+    }
+  ]
+}

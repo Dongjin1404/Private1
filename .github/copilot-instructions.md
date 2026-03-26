@@ -62,7 +62,34 @@ When you open the Copilot Chat panel in the web Codespace, you may see a dropdow
 3. Type `/help` or ask any question. The response header or the model label near the input box should reflect the configured model.
 4. Alternatively, open the **Command Palette** (`F1` or `Ctrl+Shift+P`), type **"Open User Settings (JSON)"** and check that `"github.copilot.chat.languageModel"` is `"claude-sonnet-4-5"`.
 
-#### Switching to Claude Opus 4.5 in the web Codespace
+#### Switching models for specific tasks (browser Codespace)
+
+Because Sonnet 4.5 / Opus 4.5 do not appear in the GitHub Copilot model picker, this repository provides **VS Code Tasks** and a helper script for one-command model switching.
+
+**Method 1 — VS Code Task (recommended)**
+
+1. Open the **Command Palette**: `Ctrl+Shift+P` (or `F1`)
+2. Type **"Tasks: Run Task"** → press Enter
+3. Choose the model you want for your current task:
+   - **Copilot: Use Claude Sonnet 4.5** — fast and capable (repo default)
+   - **Copilot: Use Claude Opus 4.5** — most capable, best for complex reasoning
+   - **Copilot: Use Claude Haiku 4.5** — fastest, good for quick completions
+   - **Copilot: Use Auto** — reverts to Copilot Auto mode
+
+VS Code hot-reloads `settings.json`; the model switch is **immediate**.
+
+**Method 2 — Integrated terminal**
+
+```bash
+python3 tools/set_copilot_model.py opus    # switch to Opus for a hard task
+python3 tools/set_copilot_model.py sonnet  # switch back when done
+```
+
+**Method 3 — Edit `.vscode/settings.json` directly**
+
+Change `"github.copilot.chat.languageModel"` to the desired model ID and save.
+
+#### Switching to Claude Opus 4.5 in the web Codespace (manual)
 
 The model picker may not list Claude Opus 4.5 directly. To switch:
 
