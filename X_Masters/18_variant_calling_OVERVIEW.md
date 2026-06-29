@@ -1,4 +1,4 @@
-# What `18_variant_calling.sh` Does — Overview for Review
+# What `18_variant_calling.sh` Does — Overview
 
 **Script:** `18_variant_calling.sh`
 **Pipeline stage:** SPAAM Ch.14 "Genotyping" → produces the SNP alignment used to build the phylogenetic tree (script 19)
@@ -79,7 +79,7 @@ flowchart TD
 **Net effect:** low breadth reduces the **amount** of evidence (wider confidence, i.e. it could lower bootstrap support), but it does **not** systematically push the picareiro samples artificially far from or close to others. The danger from low breadth is *under-powered* support, **not** *biased* topology.
 
 ### Q5. "What is the residual risk, then?"
-The honest caveat to give your supervisor:
+The honest caveats:
 - **Private SNPs** (a position covered by only one sample) add to that sample's **branch length** but not to topology. With 30% breadth these are a minority but non-zero.
 - **Shared SNPs** (≥2 samples covered) are what actually resolve the tree. The more breadth overlap between samples, the higher the support.
 - So the right question is **"how many SNP columns are shared vs. private?"** — quantified next.
@@ -108,12 +108,12 @@ for k in sorted(comp, reverse=True):
 EOF
 ```
 
-**Reading the result for your supervisor:**
+**Reading the result:**
 - Many columns with data in **most/all taxa** → tree is well supported despite 30% breadth.
 - Many columns with data in only **1–2 taxa** → topology still valid, but branch lengths/support are weaker; report bootstrap values and interpret cautiously.
 
 ---
 
-## 5. Bottom line (one paragraph for the supervisor)
+## 5. Bottom line
 
 The script produces a **reference-anchored SNP alignment**: every sample is genotyped across the whole genome, uncovered or unreliable positions become `N` (missing), and only positions that vary between samples are kept for tree-building. Low breadth (picareiro ~30%) means **less data**, not **biased data** — the phylogenetic model ignores missing positions entirely and only compares samples where they both have real bases, with an ascertainment-bias correction keeping branch lengths honest. The covered region is consistent across samples because identical masking and mapping rules are applied to all, and the informative SNP columns are by definition the ones with overlapping coverage. The remaining limitation is statistical power (reflected in bootstrap support), which §4 lets you measure directly.
