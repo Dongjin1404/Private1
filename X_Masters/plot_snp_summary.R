@@ -6,11 +6,9 @@
 #   Rscript scripts/plot_snp_summary.R 18_variant_calling_0.3 18_variant_calling_0.3/plots
 #
 # OUTPUTS (in outdir, default = vardir/plots/):
-#   snp_bar.pdf           — stacked bar: Confident vs Ambiguous per sample, coloured by pass/fail
-#   snp_scatter.pdf       — scatter: Confident vs Ambiguous, sized by coverage breadth
-#   snp_ratio.pdf         — bar: ambiguous fraction (%) per sample — best single QC indicator
-#   snp_heterogeneity.pdf — bar: strain-heterogeneous SNPs (ALT fraction band, default 40-80%) per
-#                           sample — only written if the Het_SNPs_* column is present in the TSV
+#   snp_bar.pdf      — stacked bar: Confident vs Ambiguous per sample, coloured by pass/fail
+#   snp_scatter.pdf  — scatter: Confident vs Ambiguous, sized by coverage breadth
+#   snp_ratio.pdf    — bar: ambiguous fraction (%) per sample — best single QC indicator
 #
 # REQUIRES: ggplot2, dplyr, tidyr, scales   (install.packages(c("ggplot2","dplyr","tidyr","scales")))
 
@@ -202,58 +200,19 @@ ggsave(file.path(outdir, "snp_ratio.pdf"), pC,
        width = bar_width, height = bar_height, units = "in", limitsize = FALSE)
 message("Saved: ", file.path(outdir, "snp_ratio.pdf"))
 
-# ── 5b. PLOT D — Strain-heterogeneous SNPs (allele-fraction band) ─────────────
-# Absolute count of SNPs whose ALT fraction fell in the configured band (default 40-80%) — the
-# positions most diagnostic of within-sample strain mixture, removed (masked → N) from the alignment.
-# Only drawn if 18_variant_calling.sh wrote a Het_SNPs_<lo>_<hi> column (older TSVs lack it).
-het_col <- grep("^Het_SNPs_", names(dat), value = TRUE)[1]
-if (!is.na(het_col)) {
-  band_lbl <- gsub("_", "-", sub("^Het_SNPs_", "", het_col))   # "40_80" -> "40-80"
-  dat$Het  <- suppressWarnings(as.numeric(dat[[het_col]]))
-  pD <- ggplot(dat, aes(x = Tag, y = Het, fill = Pass)) +
-    geom_col(width = 0.78, colour = NA, alpha = 0.9) +
-    scale_fill_manual(values = c("yes" = COL_CONF, "no" = COL_FAIL),
-                      labels  = c("yes" = "PASS", "no" = "FAIL"),
-                      name = "Breadth filter") +
-    scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.06))) +
-    facet_wrap(~Genome, scales = "free", ncol = min(n_genomes, 2)) +
-    labs(
-      title    = paste0("Strain-heterogeneous SNPs per sample  (ALT fraction ", band_lbl, "%)"),
-      subtitle = "Mixed-allele positions removed (masked \u2192 N) as strain heterogeneity \u2014 higher = more within-sample strain mixture",
-      x = NULL,
-      y = "Number of heterogeneous positions"
-    ) +
-    theme_bw(base_size = 10) +
-    theme(
-      axis.text.x        = element_text(angle = 55, hjust = 1, size = 6.5),
-      strip.text         = element_text(face = "bold", size = 9),
-      legend.position    = "top",
-      panel.grid.major.x = element_blank(),
-      plot.title         = element_text(face = "bold")
-    )
-  ggsave(file.path(outdir, "snp_heterogeneity.pdf"), pD,
-         width = bar_width, height = bar_height, units = "in", limitsize = FALSE)
-  message("Saved: ", file.path(outdir, "snp_heterogeneity.pdf"))
-} else {
-  message("Note: no Het_SNPs_* column in the summary \u2014 skipping heterogeneity plot ",
-          "(re-run 18_variant_calling.sh to populate it).")
-}
-
 # ── 6. Console summary table ──────────────────────────────────────────────────
 cat("\n=== SNP Summary Table ===\n")
-het_col <- grep("^Het_SNPs_", names(dat), value = TRUE)[1]
-base_cols <- c("Genome", "Dataset", "Sample", "Pass",
-               "CovBreadth_Pct", "Confident_SNPs", "Ambiguous_Masked",
-               if (!is.na(het_col)) het_col, "Ambig_frac")
 print(
-  dat %>%
-    select(all_of(base_cols)) %>%
-    rename(`Breadth%` = CovBreadth_Pct,
-           `Confident` = Confident_SNPs,
-           `Ambiguous` = Ambiguous_Masked,
-           `Ambig%` = Ambig_frac) %>%
-    mutate(`Ambig%` = round(`Ambig%`, 1)) %>%
-    arrange(Genome, Pass, desc(Confident)),
-  n = Inf
+  as.data.frame(
+    dat %>%
+      select(Genome, Dataset, Sample, Pass,
+             CovBreadth_Pct, Confident_SNPs, Ambiguous_Masked, Ambig_frac) %>%
+      rename(`Breadth%` = CovBreadth_Pct,
+             `Confident` = Confident_SNPs,
+             `Ambiguous` = Ambiguous_Masked,
+             `Ambig%` = Ambig_frac) %>%
+      mutate(`Ambig%` = round(`Ambig%`, 1)) %>%
+      arrange(Genome, Pass, desc(Confident))
+  )
 )
 cat("\nOutputs written to: ", outdir, "\n")
