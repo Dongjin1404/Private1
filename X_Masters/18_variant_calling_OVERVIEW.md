@@ -35,7 +35,7 @@ flowchart TD
     end
 
     INC --> STACK["STEP D — Stack reference + all passing samples\n(every sequence same length, positions aligned)"]
-    STACK --> SNP["STEP E — Keep only SNP columns\n(positions where >= 2 different A/C/G/T\nappear across the sequences)"]
+    STACK --> SNP["STEP E — Keep only SNP columns\n(positions where >= 2 different A/C/G/T\nappear across the sequences,\nreference tip included in the count)"]
     SNP --> OUT["snpAlignment.fasta\n= input to RAxML (script 19)"]
     SNP --> SUM["variant_summary.tsv\nConfident SNPs vs Ambiguous (N) per sample"]
     SNP --> OV["phylo_snp_overview.tsv\nKEEP / LOW_SIGNAL decision per genome"]
@@ -51,7 +51,7 @@ flowchart TD
 | **B. Per-sample base calling** | For each sample, at each position: require ≥3 reads and ≥90% agreement to call a base; otherwise write **N**. | This is the core variant call. The 90% rule and N-masking protect against ancient-DNA damage and contamination. |
 | **C. Breadth filter** | A sample is kept only if **≥30%** of the genome is covered ≥3×. | Samples with too little data are excluded so they can't add noise. |
 | **D. Stacking** | The reference and all passing samples are lined up — because all are reference length, positions already correspond. | This is the "alignment" — no gap-insertion software needed (mapping already aligned everything to the reference). |
-| **E. SNP extraction** | Keep only the columns where samples actually differ (≥2 distinct bases). | These variable positions carry the phylogenetic signal; invariant positions are dropped to make the tree computation efficient. |
+| **E. SNP extraction** | Keep only the columns where the sequences actually differ (≥2 distinct A/C/G/T), **counting the reference tip together with the passing samples**. | These variable positions carry the phylogenetic signal; invariant positions are dropped to make the tree computation efficient. Because the reference is a genuine tip in the tree, a column where all samples share one base but the reference differs is a real SNP (it defines the reference-vs-samples branch) — so the reference must be included in the ≥2 count, not excluded. |
 
 **Key output:** `snpAlignment.fasta` — one row per sample (+ reference), one column per SNP, with `N` wherever a sample lacked reliable data.
 
@@ -68,7 +68,9 @@ flowchart TD
 **Largely yes, and not by chance.** The covered ~30% is driven by which parts of this organism's genome are (a) conserved enough for reads to map and (b) not in the uniform mask. Because the **same exclusion mask** and the **same mapping criteria** apply to every sample, the regions that survive tend to be the **same well-behaved regions** across samples — not a random different 30% per sample. You can verify this directly (see §4).
 
 ### Q3. "Do the other samples also cover that region?"
-**For the SNP columns that matter, at least partly — by construction.** A column only becomes a SNP if **≥2 samples** have a confident, *differing* A/C/G/T there. A position where only one sample has data and everyone else is `N` cannot be "variable across samples," so it is **either dropped or contributes only to that one sample's branch length**. The phylogenetically informative columns are therefore the ones with overlapping coverage between samples.
+**Not necessarily — and here is exactly what happens to a column where only one sample has data.** The retained-column test is "≥2 distinct A/C/G/T across **reference + passing samples**." Because the **reference is a complete genome with no `N`**, a position where exactly one sample has a base (say an ALT `G`) and every other sample is `N` still has two distinct bases (reference `A` + sample `G`) — so it is **KEPT, not dropped**. Such a column is a **singleton / autapomorphy**: it adds to that one sample's **terminal branch length** but **cannot change topology** (a single differing tip cannot group tips).
+
+**Consequence to be aware of:** the mutation is real (that sample genuinely carries it), so it is not an artifact — but the *number* of these private columns scales with **breadth**, so a high-coverage sample accumulates more of them and its terminal branch looks longer purely because more of its genome was visible. This biases **branch-length comparability**, never topology. If branch-length comparison across samples of very different breadth matters, apply a **minimum taxon-occupancy filter** (drop columns with real data in fewer than *k* samples) or restrict to **parsimony-informative** columns (variant shared by ≥2 samples). Both are compatible with the `ASC_LEWIS` correction because they remove columns, not taxa. See §4 for the exact site counts at each threshold. The phylogenetically **informative** columns are, by definition, the ones with overlapping coverage between samples.
 
 ### Q4. "Is the tree built only on the covered region, or on the entire genome? (could it push samples artificially apart?)"
 **Only on the positions with actual data — the model explicitly ignores `N`.** Two important safeguards:
@@ -88,29 +90,55 @@ The honest caveats:
 
 ## 4. How to quantify the overlap (run on the cluster)
 
-This prints, for the 93,493 SNP columns, how many taxa have real data per column — i.e. how much of the signal is genuinely shared:
+**"Threshold" = the minimum number of samples that must have a real base (non-`N`) in a column for that column to survive.** The rule "remove any position where **more than 1 sample is `N`**" is the threshold *"at most 1 `N` allowed"* — i.e. keep a column only if at least `(N_samples − 1)` samples have real data. The script below prints the surviving-site count for that exact rule (highlighted) plus the full range of thresholds for comparison:
 
 ```bash
 python3 - <<'EOF'
 from collections import Counter
 fa = "18_variant_calling_0.3/GCF_039521565/GCF_039521565.snpAlignment.fasta"
+
 aln, name = {}, None
 for line in open(fa):
     line = line.rstrip()
     if line.startswith(">"): name = line[1:]; aln[name] = []
     else: aln[name].extend(line)
-taxa = list(aln); n = len(aln[taxa[0]])
-comp = Counter(sum(aln[t][i].upper() not in ("N","-") for t in taxa) for i in range(n))
-print(f"{n} SNP columns across {len(taxa)} taxa\n")
-print(f"{'taxa with data':>15} {'columns':>10} {'%':>6}")
-for k in sorted(comp, reverse=True):
-    print(f"{k:>15} {comp[k]:>10} {100*comp[k]/n:>5.1f}%")
+
+taxa    = list(aln)
+samples = [t for t in taxa if not t.startswith("REFERENCE_")]   # exclude ref from occupancy
+n       = len(aln[taxa[0]])
+ntax    = len(samples)
+
+def col_ok(i):                      # non-N SAMPLES at column i (reference excluded)
+    return sum(aln[t][i].upper() not in ("N","-") for t in samples)
+
+def informative(i):                 # >=2 samples share each of >=2 alleles (removes singletons)
+    c = Counter(aln[t][i].upper() for t in samples if aln[t][i].upper() in "ACGT")
+    return sum(v >= 2 for v in c.values()) >= 2
+
+occ = [col_ok(i) for i in range(n)]
+print(f"{n} SNP columns | {ntax} samples (+reference)\n")
+
+# ---- YOUR RULE: at most 1 sample may be N (i.e. >= ntax-1 samples have data) ----
+strict = sum(o >= ntax - 1 for o in occ)
+print(f">>> YOUR RULE  (<=1 sample N  ==  >= {ntax-1}/{ntax} samples with data): "
+      f"{strict} sites  ({100*strict/n:.1f}%)\n")
+
+print("full threshold sweep  (min samples with data -> columns kept):")
+for k in [1, 2, 3, 4, max(1,ntax//2), max(1,int(0.75*ntax)), ntax-1, ntax]:
+    kept = sum(o >= k for o in occ)
+    tag  = "   <-- <=1 N (your rule)" if k == ntax-1 else ("   <-- 0 N (all samples)" if k == ntax else "")
+    print(f"  >= {k:>3} samples ({100*k/ntax:5.1f}% occ) : {kept:>8}  ({100*kept/n:4.1f}%){tag}")
+
+pinf = sum(informative(i) for i in range(n))
+print(f"\nparsimony-informative columns (no singletons): {pinf}  ({100*pinf/n:.1f}%)")
 EOF
 ```
 
 **Reading the result:**
-- Many columns with data in **most/all taxa** → tree is well supported despite 30% breadth.
-- Many columns with data in only **1–2 taxa** → topology still valid, but branch lengths/support are weaker; report bootstrap values and interpret cautiously.
+- The `>>> YOUR RULE` line is the direct answer to "how many sites remain if I drop every column with more than one `N`."
+- The **full threshold sweep** shows how the site count grows as you relax the rule (allow more `N`), so you can see the trade-off between completeness and number of sites.
+- The **parsimony-informative** line is the strictest "remove private SNPs" count: only columns whose variant is shared by ≥2 samples, i.e. the subset that actually resolves topology.
+- Note: with uneven breadth, "≤1 `N`" can be very aggressive — if it leaves too few sites, relax toward `≥ 50%` occupancy and report both.
 
 ---
 
