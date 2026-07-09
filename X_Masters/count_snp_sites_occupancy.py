@@ -23,7 +23,8 @@ USAGE:
 OPTIONS:
   --max-n K     keep a column only if AT MOST K samples are N  (default 1 = your cutoff)
   --write       also write <name>.snpAlignment.maxN<K>.fasta next to each input
-  --quiet       print only the summary table (no per-genome detail block)
+  --quiet       print only the final summary table (no per-genome detail block)
+  --no-per-sample  suppress the per-sample non-N site table (still shown by default)
 """
 
 import argparse
@@ -49,7 +50,7 @@ def read_fasta(path):
     return aln
 
 
-def analyse(path, max_n, write, quiet):
+def analyse(path, max_n, write, quiet, per_sample):
     aln = read_fasta(path)
     if not aln:
         print(f"[skip] {path}: no sequences")
@@ -106,6 +107,19 @@ def analyse(path, max_n, write, quiet):
             print(f"      >= {k:>3}/{ntax} ({100*k/ntax:5.1f}%): {s:>8}  ({100*s/n:4.1f}%){tag}")
         print()
 
+    # --- Per-sample non-N site counts (over the KEPT columns only) ---
+    if per_sample and not quiet:
+        print(f"  Per-sample non-N sites (over {kept} retained columns):")
+        print(f"    {'Sample':<40} {'Non-N':>8}  {'Non-N%':>7}")
+        ref_names = [t for t in taxa if t.startswith("REFERENCE_")]
+        sample_names = [t for t in taxa if not t.startswith("REFERENCE_")]
+        for t in ref_names + sorted(sample_names):
+            nn = sum(aln[t][i].upper() in "ACGT" for i in keep_idx) if kept > 0 else 0
+            pct = 100 * nn / kept if kept > 0 else 0.0
+            tag = "  (reference)" if t.startswith("REFERENCE_") else ""
+            print(f"    {t:<40} {nn:>8}  {pct:>6.1f}%{tag}")
+        print()
+
     if write and kept > 0:
         out = path.replace(".snpAlignment.fasta", f".snpAlignment.maxN{max_n}.fasta")
         with open(out, "w") as fh:
@@ -129,6 +143,9 @@ def main():
                     help="also write filtered <name>.snpAlignment.maxN<K>.fasta")
     ap.add_argument("--quiet", action="store_true",
                     help="print only the final summary table")
+    ap.add_argument("--no-per-sample", dest="per_sample", action="store_false",
+                    help="suppress the per-sample non-N site table")
+    ap.set_defaults(per_sample=True)
     args = ap.parse_args()
 
     # expand inputs -> concrete FASTA paths
@@ -144,7 +161,7 @@ def main():
     if not fastas:
         sys.exit("No *.snpAlignment.fasta inputs found.")
 
-    rows = [r for f in fastas if (r := analyse(f, args.max_n, args.write, args.quiet))]
+    rows = [r for f in fastas if (r := analyse(f, args.max_n, args.write, args.quiet, args.per_sample))]
 
     # summary table
     print("=" * 78)
