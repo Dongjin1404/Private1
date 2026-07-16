@@ -50,7 +50,7 @@ def read_fasta(path):
     return aln
 
 
-def analyse(path, max_n, write, quiet, per_sample):
+def analyse(path, max_n, write, quiet, per_sample, write_pi=False):
     aln = read_fasta(path)
     if not aln:
         print(f"[skip] {path}: no sequences")
@@ -86,7 +86,8 @@ def analyse(path, max_n, write, quiet, per_sample):
         )
         return sum(v >= 2 for v in c.values()) >= 2
 
-    pinf = sum(informative(i) for i in range(n))
+    pi_idx = [i for i in range(n) if informative(i)]
+    pinf = len(pi_idx)
 
     genome = os.path.basename(path).replace(".snpAlignment.fasta", "")
 
@@ -128,6 +129,14 @@ def analyse(path, max_n, write, quiet, per_sample):
                 fh.write("".join(aln[t][i] for i in keep_idx) + "\n")
         print(f"  [written] {out}  ({kept} columns x {len(taxa)} taxa)")
 
+    if write_pi and pinf > 0:
+        out = path.replace(".snpAlignment.fasta", ".snpAlignment.PI.fasta")
+        with open(out, "w") as fh:
+            for t in taxa:  # keep reference + all samples as rows
+                fh.write(f">{t}\n")
+                fh.write("".join(aln[t][i] for i in pi_idx) + "\n")
+        print(f"  [written] {out}  ({pinf} parsimony-informative columns x {len(taxa)} taxa)")
+
     return {"genome": genome, "samples": ntax, "total": n,
             "kept": kept, "pinf": pinf, "thresh": keep_thresh}
 
@@ -141,6 +150,8 @@ def main():
                     help="max samples allowed to be N per column (default 1 = your cutoff)")
     ap.add_argument("--write", action="store_true",
                     help="also write filtered <name>.snpAlignment.maxN<K>.fasta")
+    ap.add_argument("--write-pi", dest="write_pi", action="store_true",
+                    help="also write parsimony-informative-only <name>.snpAlignment.PI.fasta")
     ap.add_argument("--quiet", action="store_true",
                     help="print only the final summary table")
     ap.add_argument("--no-per-sample", dest="per_sample", action="store_false",
@@ -161,7 +172,7 @@ def main():
     if not fastas:
         sys.exit("No *.snpAlignment.fasta inputs found.")
 
-    rows = [r for f in fastas if (r := analyse(f, args.max_n, args.write, args.quiet, args.per_sample))]
+    rows = [r for f in fastas if (r := analyse(f, args.max_n, args.write, args.quiet, args.per_sample, args.write_pi))]
 
     # summary table
     print("=" * 78)
